@@ -4,27 +4,46 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { client } from "../lib/sanity";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 
 const links = [
   { name: "Home", href: "/" },
-  // { name: "Edit Profile", href: "/user/edit" }, // Dinamik hale getireceğiz
-  // { name: "Show Profile", href: "/profile" }, // Dinamik hale getireceğiz
-  { name: "Contact", href: "/contact" },
+  { name: "Help", href: "/help" },
 ];
+
+async function getData(userId) {
+  const query = `*[_type == "user" && id == "${userId}"][0].role`;
+  const data = await client.fetch(query);
+  return data;
+}
 
 export default function Navbar() {
   const { user } = useUser();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (user?.id) {
+        try {
+          const role = await getData(user.id);
+          setUserRole(role);
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+        }
+      }
+    };
+
+    fetchUserRole();
+  }, [user?.id]);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
-
-  const userId = user?.id;
 
   return (
     <header className="mb-8 border-b">
@@ -52,20 +71,28 @@ export default function Navbar() {
               )}
             </div>
           ))}
-          {userId && (
+          {user?.id && (
             <>
               <Link
-                href={`/user/edit/${userId}`}
-                className={pathname === `/user/edit/${userId}` ? "text-lg font-semibold text-primary" : "text-lg font-semibold text-gray-600 transition duration-100 hover:text-primary"}
+                href={`/user/edit/${user.id}`}
+                className={pathname === `/user/edit/${user.id}` ? "text-lg font-semibold text-primary" : "text-lg font-semibold text-gray-600 transition duration-100 hover:text-primary"}
               >
                 Edit Profile
               </Link>
               <Link
-                href={`/user/profile/${userId}`}
-                className={pathname === `/user/profile/${userId}` ? "text-lg font-semibold text-primary" : "text-lg font-semibold text-gray-600 transition duration-100 hover:text-primary"}
+                href={`/user/profile/${user.id}`}
+                className={pathname === `/user/profile/${user.id}` ? "text-lg font-semibold text-primary" : "text-lg font-semibold text-gray-600 transition duration-100 hover:text-primary"}
               >
                 Show Profile
               </Link>
+              {userRole === "admin" && (
+                <Link
+                  href={`/user/admin/${user.id}`}
+                  className={pathname === `/user/admin/${user.id}` ? "text-lg font-semibold text-primary" : "text-lg font-semibold text-gray-600 transition duration-100 hover:text-primary"}
+                >
+                  Admin Home
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -120,22 +147,31 @@ export default function Navbar() {
                   )}
                 </div>
               ))}
-              {userId && (
+              {user?.id && (
                 <>
                   <Link
-                    href={`/user/edit/${userId}`}
+                    href={`/user/edit/${user.id}`}
                     className="text-lg font-semibold text-gray-800 transition duration-100 hover:text-primary mb-2"
                     onClick={toggleMenu}
                   >
                     Edit Profile
                   </Link>
                   <Link
-                    href={`/user/profile/${userId}`}
+                    href={`/user/profile/${user.id}`}
                     className="text-lg font-semibold text-gray-800 transition duration-100 hover:text-primary"
                     onClick={toggleMenu}
                   >
                     Show Profile
                   </Link>
+                  {userRole === "admin" && (
+                    <Link
+                      href={`/user/admin/${user.id}`}
+                      className="text-lg font-semibold text-gray-800 transition duration-100 hover:text-primary"
+                      onClick={toggleMenu}
+                    >
+                      Admin Home
+                    </Link>
+                  )}
                 </>
               )}
               <div className="lg:flex items-center space-x-4">
@@ -150,6 +186,9 @@ export default function Navbar() {
           </motion.nav>
         )}
       </AnimatePresence>
+
+      {/* Display user role for visual confirmation */}
+
     </header>
   );
 }
